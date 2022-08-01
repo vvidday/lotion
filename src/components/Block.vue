@@ -10,7 +10,7 @@
         'py-3.5': block.type === BlockType.H1,
         'py-3': block.type === BlockType.H2,
         'py-2.5': block.type === BlockType.H3,
-      }">
+      }" contenteditable="false">
       <Tooltip value="<span class='text-neutral-400'><span class='text-white'>Click</span> to delete block</span>">
         <v-icon name="hi-trash" @click="emit('deleteBlock')"
           class="w-6 h-6 hover:bg-neutral-100 hover:text-neutral-400 p-0.5 rounded group-hover:opacity-100 opacity-0" />
