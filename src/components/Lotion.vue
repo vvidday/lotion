@@ -9,8 +9,8 @@
       v-bind="dragOptions" class="-ml-24 space-y-2 pb-4" @mousedown="() => isContentEditable = false">
       <transition-group type="transition">
         <BlockComponent :block="block" v-for="block, i in props.page.blocks" :key="i"
-          :ref="el => blockElements[i] = (el as unknown as typeof Block)" 
-          @deleteBlock="props.page.blocks.splice(i, 1)"
+          :ref="el => blockElements[i] = (el as unknown as typeof Block)"
+          @deleteBlock="deleteBlock(i)"
           @newBlock="insertBlock(i)"
           @moveToPrevChar="() => { if (blockElements[i-1]) blockElements[i-1].moveToEnd(); scrollIntoView(); }"
           @moveToNextChar="() => { if (blockElements[i+1]) blockElements[i+1].moveToStart(); scrollIntoView(); }"
@@ -44,7 +44,6 @@ const dragOptions = {
   disabled: false,
   ghostClass: 'ghost',
 }
-
 
 onBeforeUpdate(() => {
   blockElements.value = []
@@ -216,6 +215,14 @@ function insertBlock (blockIdx: number) {
     blockElements.value[blockIdx+1].moveToStart()
     scrollIntoView()
   })
+}
+
+function deleteBlock (blockIdx: number) {
+  props.page.blocks.splice(blockIdx, 1)
+  // Always keep at least one block
+  if (props.page.blocks.length === 0) {
+    insertBlock(0)
+  }
 }
 
 function setBlockType (blockIdx: number, type: BlockType) {
