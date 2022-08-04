@@ -296,92 +296,128 @@ function getCaretCoordinates () {
   return { x, y }
 }
 
+interface OffsetRes {
+  offsetNoTags: number,
+  offset: number,
+  found: boolean
+  tags: string[]
+}
+
+/*
+  Function that gets offset of a node within a text-based (tiptap editor) block
+  @param selectedNode - The target node to get the offset for
+  @param parentNode - The parent <p> node containing the content - direct child of class="ProseMirror" div
+  @param layer - Used for recursion
+  @param tags - Used for recursion
+  @return OffsetRes
+    offsetNoTags - Integer representing offset of selectedNode without any tags
+    offset - Integer representing offset of selectedNode including all html tags (<p>, <strong>, etc)
+    found - Boolean indicating if selectedNode was found
+    tags - Array of strings indicating the tag(s), if any, that wrap the selectedNode
+*/
+function getNodeOffset (selectedNode: Node, parentNode: any, layer:number = 1, tags:string[] = []) : OffsetRes {
+  // Edge case for single character in #33 and after split - at most 2 layers deep
+  if (layer === 1 && selectedNode.childNodes.length > 0) {
+    if (selectedNode.childNodes[0].childNodes.length > 0)
+      selectedNode = selectedNode.childNodes[0].childNodes[0]
+    else selectedNode = selectedNode.childNodes[0]
+  }
+  // Maximum depth of 3 at all times, cannot nest more than <p><strong><em></em></strong></p>
+  if (layer > 3) return {offsetNoTags: 0, offset: 0, found: false, tags: []}
+  // On first layer, add 3 to account for <p>
+  let offsetNoTags = 0, offset = layer === 1 ? 3 : 0
+  for (const [_, node] of parentNode.childNodes.entries()) {
+    if (node === selectedNode) {
+      return {offsetNoTags: offsetNoTags, offset: offset, found: true, tags: tags}
+    }
+    if (node.childNodes.length > 0) {
+      // Means current node is a <strong> or <em> node
+      offset += node.tagName.length + 2
+      tags.push(node.tagName.toLowerCase())
+      const res = getNodeOffset(selectedNode, node, layer + 1, tags)
+      if (res.found) return {offsetNoTags: offsetNoTags + res.offsetNoTags, offset: offset + res.offset, found: true, tags: res.tags}
+      // Node not found, add closing tag (+3 for </>)
+      offset += res.offset + node.tagName.length + 3
+      offsetNoTags += res.offsetNoTags
+      // Backtrack - the inner tag no longer wraps the following nodes
+      tags.pop()
+    } else {
+      // Current node is a regular text node, add length
+      offset += node.textContent.length
+      offsetNoTags += node.textContent.length
+    }
+  }
+  return {offsetNoTags: offsetNoTags, offset: offset, found: false, tags: tags}
+}
+
 function getCaretPos () {
   const selection = window.getSelection()
-  if (selection) {
+  if (selection && selection.anchorNode) {
+    // If editor type, use getNodeOffset, else just return anchor offset
     if (props.block.type === BlockType.Text || props.block.type === BlockType.Quote) {
-      let offsetNode, offset = 0, tag = null
-      let selectedNode = selection.anchorNode
-      if (['STRONG', 'EM'].includes(selectedNode?.parentElement?.tagName as string)) {
-        selectedNode = selectedNode?.parentElement as Node
-        tag = (selectedNode as HTMLElement).tagName.toLowerCase()
-      }
-      // Edge case when character length is 1
-      if (selectedNode !== null && selectedNode.childNodes.length > 0) {
-        if (selectedNode.childNodes[0].textContent && selectedNode.childNodes[0].textContent.length <= 1)
-          selectedNode = selectedNode.childNodes[0];
-      }
-      for (const [i, node] of (content.value as any).$el.firstChild.firstChild.childNodes.entries()) {
-        if (node === selectedNode) {
-          offsetNode = node
-          if (node.tagName) offset += 2 + node.tagName.length
-          break
-        }
-        if (node.tagName) offset += node.outerHTML.length
-        else offset += node.textContent.length
-        offsetNode = node
-      }
-      return { pos: offset + selection.anchorOffset + (selectedNode?.parentElement?.tagName === 'P' ? 3 : 0), tag }
-    } else {
-      return { pos: selection.anchorOffset }
-    }
-  } else {
-    return { pos: 0 }
-  }
+      const res = getNodeOffset(selection.anchorNode, (content.value as any).$el.firstChild.firstChild)
+      return {pos: selection.anchorOffset + res.offset, tags: res.tags}
+    } else return {pos: selection.anchorOffset, tags: []}
+  } else return {pos: 0, tags: []}
 }
 
 function getCaretPosWithoutTags () {
   const selection = window.getSelection()
-  if (selection) {
-    if (props.block.type === BlockType.Text || props.block.type === BlockType.Quote) {
-      let offsetNode, offset = 0, tag = null
-      let selectedNode = selection.anchorNode
-      if (['STRONG', 'EM'].includes(selectedNode?.parentElement?.tagName as string)) {
-        selectedNode = selectedNode?.parentElement as Node
-        tag = (selectedNode as HTMLElement).tagName.toLowerCase()
-      }
-      // Edge case when character length is 1
-      if (selectedNode !== null && selectedNode.childNodes.length > 0) {
-        if (selectedNode.childNodes[0].textContent && selectedNode.childNodes[0].textContent.length <= 1)
-          selectedNode = selectedNode.childNodes[0];
-      }
-      for (const [i, node] of (content.value as any).$el.firstChild.firstChild.childNodes.entries()) {
-        if (node === selectedNode) {
-          offsetNode = node
-          break
-        }
-        offset += node.textContent.length
-        offsetNode = node
-      }
-      return { pos: offset + selection.anchorOffset, tag }
+  if (selection && selection.anchorNode) {
+    // If editor type, use getNodeOffset, else just return anchor offset
+    if (props.block.type === BlockType.Text || props.block.type === BlockType.Quote)
+      return {pos: selection.anchorOffset + getNodeOffset(selection.anchorNode, (content.value as any).$el.firstChild.firstChild).offsetNoTags}
+    else return {pos: selection.anchorOffset}
+  } else return {pos: 0}
+}
+
+interface NodeSelectRes {
+  node?: Node,
+  offset: number,
+  found: boolean
+}
+
+/*
+  Function that gets the node that we want to set the caret on, based on ideal caret position
+  @param caretPos - The offset (no tags) of the ideal position of the caret
+  @param parentNode - The parent <p> node containing the content - direct child of class="ProseMirror" div
+  @param layer - Used for recursion
+  @return NodeSelectRes
+    node - The node to set the caret on
+    offset - Integer representing exact offset to set the caret on
+    found - Boolean indicating if node was found
+*/
+function getNodeToSelect (caretPos: number, parentNode: any, layer: number = 1) : NodeSelectRes {
+  if (layer > 3) return {offset: caretPos, found: false}
+  for (const [_, node] of parentNode.childNodes.entries()) {
+    if (node.childNodes.length > 0) {
+      const res = getNodeToSelect(caretPos, node, layer + 1)
+      if (res.found) return {node: res.node, offset: res.offset, found: true}
+      caretPos = res.offset
     } else {
-      return { pos: selection.anchorOffset }
+      // If we are in a text node and caretPos <= length, this is the correct node
+      if (caretPos <= node.textContent.length) {
+        return {node: node, offset: caretPos, found: true}
+      }
+      caretPos -= node.textContent.length
     }
-  } else {
-    return { pos: 0 }
   }
+  return {offset: caretPos, found: false}
 }
 
 function setCaretPos (caretPos:number) {
   const innerContent = getInnerContent()
   if (innerContent) {
     if (props.block.type === BlockType.Text || props.block.type === BlockType.Quote) {
-      let offsetNode, offset = 0
-      const numNodes = (content.value as any).$el.firstChild.firstChild.childNodes.length
-      for (const [i, node] of (content.value as any).$el.firstChild.firstChild.childNodes.entries()) {
-        if (offset + node.textContent.length > caretPos || i === numNodes - 1) {
-          offsetNode = node
-          break
-        }
-        offset += node.textContent.length
-        offsetNode = node
+      const res = getNodeToSelect(caretPos, (content.value as any).$el.firstChild.firstChild)
+      if (res.node !== undefined) {
+        const selection = window.getSelection()
+        const range = document.createRange()
+        range.setStart(res.node, res.offset)
+        range.setEnd(res.node, res.offset)
+        selection?.removeAllRanges()
+        selection?.addRange(range)
       }
-      const selection = window.getSelection()
-      const range = document.createRange()
-      range.setStart(offsetNode.firstChild || offsetNode, caretPos - offset)
-      range.setEnd(offsetNode.firstChild || offsetNode, caretPos - offset)
-      selection?.removeAllRanges()
-      selection?.addRange(range)
     } else {
       const selection = window.getSelection()
       const range = document.createRange()
