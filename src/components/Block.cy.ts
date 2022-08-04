@@ -1,57 +1,11 @@
-import { Block, BlockType } from "@/utils/types";
-import { mount } from "cypress/vue";
-import BlockComp from "./Block.vue";
-
-const template = {
-  template: `<Block />`,
-  props: {
-    block: {
-      type: BlockType.Text,
-      details: {},
-    },
-  },
-};
-
-// const block: Block = {
-//   type: BlockType.Text,
-//   details: {
-//     value: "lorem ipsum",
-//   },
-// };
+import { Block, BlockType } from "@/utils/types"
+import { mount } from "cypress/vue"
+import BlockComp from "./Block.vue"
 
 interface TestValue {
   text: string;
   posOfB: number;
 }
-
-// function newTestValue(str: string, idx: number): TestValue {
-//   return {
-//     text: "<p>" + insertStr(str, idx, "B") + "</p>",
-//     posOfB: idx,
-//   };
-// }
-
-// function newTagTestValue() {
-//   return insertTags(insertStr(TEST_STRINGS_REG[0], 4, "B"), [{name: 'strong', startIdx: }])
-// }
-
-// function insertStr(str: string, idx: number, ins: string) {
-//   return str.slice(0, idx) + ins + str.slice(idx);
-// }
-
-// interface TagInfo {
-//   name: string;
-//   startIdx: number;
-//   endIdx: number;
-// }
-// function insertTags(str: string, tags: TagInfo[]) {
-//   let result = str.slice(0, tags[0].startIdx);
-//   for (let i = 0; i < tags.length; i++) {
-//     result += `<${tags[i].name}>` + str.slice(tags[0].startIdx, tags[0].endIdx) + `</${tags[i].name}>`;
-//     if (i < tags.length - 1) result += str.slice(tags[i].endIdx, tags[i + 1].startIdx);
-//   }
-//   return result;
-// }
 
 const TEST_STRINGS_REG = [
   { str: "aaaaaB aaaaaa", idx: 6 },
@@ -73,8 +27,8 @@ const TEST_STRINGS_ITALIC = [
 const TEST_STRINGS_BOLD_ITALIC = [
   { str: "<strong>a<em>a</em>aaaB</strong> aaaaaa", idx: 6 },
   { str: "<strong>a<em>aaaaB</em></strong> aaaaaa", idx: 6 },
-  { str: "aaaaa <em>a</em><strong>Baa</strong><em>aa</em>a", idx: 8 },
-  { str: "<strong>aaa</strong>aa <em>a</em><strong>Baa</strong><em>aa</em>a", idx: 8 },
+  { str: "aaaaa <em>a</em><strong><em>Baa</em></strong><em>aa</em>a", idx: 8 },
+  { str: "<strong>aaa</strong>aa <em>a</em><strong><em>Baa</em></strong><em>aa</em>a", idx: 8 },
   { str: "<strong>aaa<em>aa</em></strong> aaaaaBa", idx: 12 },
   { str: "a<em>aaaa</em> aaa<strong><em>aaB</em>a</strong>", idx: 12 },
 ];
@@ -88,55 +42,71 @@ for (const arr of TESTS) {
   }
 }
 
-// for (const test of TEST_STRINGS_REG) {
-//   TEST_VALUES.push({ text: `<p>${test.str}</p>`, posOfB: test.idx });
-// }
-// for (const test of TEST_STRINGS_BOLD) {
-//   TEST_VALUES.push({ text: `<p>${test.str}</p>`, posOfB: test.idx });
-// }
-// for (const test of TEST_STRINGS_ITALIC) {
-//   TEST_VALUES.push({ text: `<p>${test.str}</p>`, posOfB: test.idx });
-// }
-// for (const test of TEST_STRINGS_BOLD_ITALIC) {
-//   TEST_VALUES.push({ text: `<p>${test.str}</p>`, posOfB: test.idx });
-// }
+// describe("getCaretPos and getCaretPosWithoutTags correctly get position of caret", () => {
+//   for (const TestVal of TEST_VALUES) {
+//     it("should return the correct value", () => {
+//       const block: Block = {
+//         type: BlockType.Text,
+//         details: {
+//           value: TestVal.text,
+//         },
+//       };
+//       mount(BlockComp, {
+//         propsData: {
+//           block,
+//         },
+//       }).then((wrapper) => {
+//         // Move to start of line
+//         const x = cy.get(".ProseMirror").type("{home}");
+//         // Move to startPos
+//         for (let i = 0; i < TestVal.posOfB - 1; i++) {
+//           x.type("{rightArrow}");
+//         }
+//         x.type("{rightArrow}").then(() => {
+//           // Test getCaretPos()
+//           const pos = wrapper.vm.getCaretPos();
+//           expect(pos.pos).to.be.eq(TestVal.text.indexOf("B") + 1);
+//           // Test getCaretPosWithoutTags()
+//           const posNoTags = wrapper.vm.getCaretPosWithoutTags();
+//           expect(posNoTags.pos).to.be.eq(TestVal.posOfB);
+//         });
+//       });
+//     });
+//   }
+// });
 
-const { _, $ } = Cypress;
-
-describe("renders", () => {
-  for (const TestVal of TEST_VALUES) {
-    it("", () => {
-      //console.log(TestVal);
+describe("setCaretPos correctly sets caret position", () => {
+  "Rutrum lacinia fringilla quis ull"
+  const testString = "<p>R<strong>utr<em>um </em>la</strong>c<em>in</em><strong><em>ia f</em></strong><em>rin</em>gilla quis ull</p>"
+  const testCases = [
+    {idx: 0, textContent: 'R', offset: 0},
+    {idx: 1, textContent: 'R', offset: 1},
+    {idx: 3, textContent: 'utr', offset: 2},
+    {idx: 6, textContent: 'um ', offset: 2},
+    {idx: 9, textContent: 'la', offset: 2},
+    {idx: 11, textContent: 'in', offset: 1},
+    {idx: 14, textContent: 'ia f', offset: 2},
+    {idx: 19, textContent: 'rin', offset: 3},
+    {idx: 25, textContent: 'gilla quis ull', offset: 6},
+  ]
+  for (const testCase of testCases) {
+    it("should set caret to correct position", () => {
       const block: Block = {
         type: BlockType.Text,
         details: {
-          value: TestVal.text,
-        },
-      };
+          value: testString
+        }
+      }
       mount(BlockComp, {
         propsData: {
-          block,
-        },
-      }).then((wrapper) => {
-        // Click on editor
-        //cy.get(".ProseMirror").click();
-        // Move to start of line
-        const x = cy.get(".ProseMirror").type("{home}");
-        // Move to startPos
-        for (let i = 0; i < TestVal.posOfB - 1; i++) {
-          x.type("{rightArrow}");
+          block
         }
-        x.type("{rightArrow}").then(() => {
-          // Test getCaretPos()
-          const pos = wrapper.vm.getCaretPos();
-          console.log(pos);
-          expect(pos.pos).to.be.equal(TestVal.text.indexOf("B") + 1);
-          // Test getCaretPosWithoutTags()
-          const posNoTags = wrapper.vm.getCaretPosWithoutTags();
-          console.log(posNoTags);
-          expect(posNoTags.pos).to.be.equal(TestVal.posOfB);
-        });
-      });
-    });
+      }).then((wrapper) => {
+        wrapper.vm.setCaretPos(testCase.idx)
+        const sel = window.getSelection()
+        expect(sel?.anchorNode?.textContent).to.be.eq(testCase.textContent)
+        expect(sel?.anchorOffset).to.be.eq(testCase.offset)
+      })
+    })
   }
-});
+})
