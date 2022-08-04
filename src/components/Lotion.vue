@@ -150,10 +150,9 @@ function split (blockIdx: number) {
         openingTags += `<${caretPos.tags[i]}>`
         closingTags = `</${caretPos.tags[i]}>` + closingTags
       }
-      props.page.blocks[blockIdx+1].details.value = openingTags + props.page.blocks[blockIdx].details.value?.slice(caretPos.pos)
-      props.page.blocks[blockIdx].details.value = props.page.blocks[blockIdx].details.value?.slice(0, caretPos.pos) + closingTags
-      // Get rid of empty tags
-      props.page.blocks[blockIdx].details.value = props.page.blocks[blockIdx].details.value?.replace('<em></em>', '').replace('<strong></strong>', '')
+      // Get rid of empty tags & set values
+      props.page.blocks[blockIdx+1].details.value = (openingTags + props.page.blocks[blockIdx].details.value?.slice(caretPos.pos)).replace('<em></em>', '').replace('<strong></strong>', '')
+      props.page.blocks[blockIdx].details.value = (props.page.blocks[blockIdx].details.value?.slice(0, caretPos.pos) + closingTags).replace('<em></em>', '').replace('<strong></strong>', '')
     } else {
       props.page.blocks[blockIdx+1].details.value = `<p>${props.page.blocks[blockIdx].details.value?.slice(caretPos.pos)}`
       props.page.blocks[blockIdx].details.value = `${props.page.blocks[blockIdx].details.value?.slice(0, caretPos.pos)}</p>`
