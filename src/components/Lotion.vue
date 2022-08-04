@@ -104,7 +104,24 @@ function merge (blockIdx: number) {
 
   if (props.page.blocks[blockIdx-1].type === BlockType.Text || props.page.blocks[blockIdx-1].type === BlockType.Quote) {
     const prevBlockContentLength = blockElements.value[blockIdx-1].getTextContent().length
-    props.page.blocks[blockIdx-1].details.value = ('<p>' + (props.page.blocks[blockIdx-1] as any).details.value.replace('<p>', '').replace('</p>', '') + blockElements.value[blockIdx].getHtmlContent().replaceAll(/\<br.*?\>/g, '').replace('<p>', '').replace('</p>', '') + '</p>').replace('</strong><strong>', '').replace('</em><em>', '')
+    let prevBlockContent = (props.page.blocks[blockIdx - 1] as any).details.value.replace('<p>', '').replace('</p>', '')
+    let currBlockContent = blockElements.value[blockIdx].getHtmlContent().replaceAll(/\<br.*?\>/g, '')
+
+    // If blocks end/begin with same tags, we can safely remove them and merge
+    if (prevBlockContent.endsWith('</em></strong>') && currBlockContent.startsWith('<strong><em>')) {
+      prevBlockContent = prevBlockContent.slice(0, prevBlockContent.length - 14)
+      currBlockContent = currBlockContent.slice(12)
+    }
+    else if (prevBlockContent.endsWith('</strong>') && currBlockContent.startsWith('<strong>')) {
+      prevBlockContent = prevBlockContent.slice(0, prevBlockContent.length - 9)
+      currBlockContent = currBlockContent.slice(8)
+    } else if (prevBlockContent.endsWith('</em>') && currBlockContent.startsWith('<em>')) {
+      prevBlockContent = prevBlockContent.slice(0, prevBlockContent.length - 5)
+      currBlockContent = currBlockContent.slice(4)
+    }
+
+    props.page.blocks[blockIdx-1].details.value = ('<p>' + prevBlockContent + currBlockContent + '</p>')
+
     setTimeout(() => {
       blockElements.value[blockIdx-1].setCaretPos(prevBlockContentLength)
       props.page.blocks.splice(blockIdx, 1)
@@ -125,11 +142,25 @@ function merge (blockIdx: number) {
 function split (blockIdx: number) {
   const caretPos = blockElements.value[blockIdx].getCaretPos()
   insertBlock(blockIdx)
-  props.page.blocks[blockIdx+1].details.value = (caretPos.tag ? `<p><${caretPos.tag}>` : '<p>') + props.page.blocks[blockIdx].details.value?.slice(caretPos.pos)
   if (props.page.blocks[blockIdx].type === BlockType.Text || props.page.blocks[blockIdx].type === BlockType.Quote) {
-    props.page.blocks[blockIdx].details.value = props.page.blocks[blockIdx].details.value?.slice(0, caretPos.pos) + (caretPos.tag ? `</${caretPos.tag}></p>` : '</p>')
+    if (caretPos.tags.length > 0) {
+      let openingTags = '<p>', closingTags = '</p>'
+      for (let i = 0; i < caretPos.tags.length; i++) {
+        // Fill opening tags from front, closing tags from back
+        openingTags += `<${caretPos.tags[i]}>`
+        closingTags = `</${caretPos.tags[i]}>` + closingTags
+      }
+      props.page.blocks[blockIdx+1].details.value = openingTags + props.page.blocks[blockIdx].details.value?.slice(caretPos.pos)
+      props.page.blocks[blockIdx].details.value = props.page.blocks[blockIdx].details.value?.slice(0, caretPos.pos) + closingTags
+      // Get rid of empty tags
+      props.page.blocks[blockIdx].details.value = props.page.blocks[blockIdx].details.value?.replace('<em></em>', '').replace('<strong></strong>', '')
+    } else {
+      props.page.blocks[blockIdx+1].details.value = `<p>${props.page.blocks[blockIdx].details.value?.slice(caretPos.pos)}`
+      props.page.blocks[blockIdx].details.value = `${props.page.blocks[blockIdx].details.value?.slice(0, caretPos.pos)}</p>`
+    }
   } else {
-    props.page.blocks[blockIdx].details.value = props.page.blocks[blockIdx].details.value?.slice(0, caretPos.pos) + (caretPos.tag ? `</${caretPos.tag}></p>` : '')
+    props.page.blocks[blockIdx+1].details.value = props.page.blocks[blockIdx].details.value?.slice(caretPos.pos)
+    props.page.blocks[blockIdx].details.value = props.page.blocks[blockIdx].details.value?.slice(0, caretPos.pos)
   }
   setTimeout(() => blockElements.value[blockIdx+1].moveToStart())
 }
