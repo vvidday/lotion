@@ -42,41 +42,40 @@ for (const arr of TESTS) {
   }
 }
 
-// describe("getCaretPos and getCaretPosWithoutTags correctly get position of caret", () => {
-//   for (const TestVal of TEST_VALUES) {
-//     it("should return the correct value", () => {
-//       const block: Block = {
-//         type: BlockType.Text,
-//         details: {
-//           value: TestVal.text,
-//         },
-//       };
-//       mount(BlockComp, {
-//         propsData: {
-//           block,
-//         },
-//       }).then((wrapper) => {
-//         // Move to start of line
-//         const x = cy.get(".ProseMirror").type("{home}");
-//         // Move to startPos
-//         for (let i = 0; i < TestVal.posOfB - 1; i++) {
-//           x.type("{rightArrow}");
-//         }
-//         x.type("{rightArrow}").then(() => {
-//           // Test getCaretPos()
-//           const pos = wrapper.vm.getCaretPos();
-//           expect(pos.pos).to.be.eq(TestVal.text.indexOf("B") + 1);
-//           // Test getCaretPosWithoutTags()
-//           const posNoTags = wrapper.vm.getCaretPosWithoutTags();
-//           expect(posNoTags.pos).to.be.eq(TestVal.posOfB);
-//         });
-//       });
-//     });
-//   }
-// });
+describe("getCaretPos and getCaretPosWithoutTags correctly get position of caret", () => {
+  for (const TestVal of TEST_VALUES) {
+    it("should return the correct value", () => {
+      const block: Block = {
+        type: BlockType.Text,
+        details: {
+          value: TestVal.text,
+        },
+      };
+      mount(BlockComp, {
+        propsData: {
+          block,
+        },
+      }).then((wrapper) => {
+        // Move to start of line
+        const x = cy.get(".ProseMirror").type("{home}");
+        // Move to startPos
+        for (let i = 0; i < TestVal.posOfB - 1; i++) {
+          x.type("{rightArrow}");
+        }
+        x.type("{rightArrow}").then(() => {
+          // Test getCaretPos()
+          const pos = wrapper.vm.getCaretPos();
+          expect(pos.pos).to.be.eq(TestVal.text.indexOf("B") + 1);
+          // Test getCaretPosWithoutTags()
+          const posNoTags = wrapper.vm.getCaretPosWithoutTags();
+          expect(posNoTags.pos).to.be.eq(TestVal.posOfB);
+        });
+      });
+    });
+  }
+});
 
 describe("setCaretPos correctly sets caret position", () => {
-  "Rutrum lacinia fringilla quis ull"
   const testString = "<p>R<strong>utr<em>um </em>la</strong>c<em>in</em><strong><em>ia f</em></strong><em>rin</em>gilla quis ull</p>"
   const testCases = [
     {idx: 0, textContent: 'R', offset: 0},
