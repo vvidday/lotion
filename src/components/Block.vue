@@ -64,11 +64,11 @@ const emit = defineEmits([
 
 function getFirstChild () {
   if (props.block.type === BlockType.Text || props.block.type === BlockType.Quote) {
-    if ((content.value as any).$el.firstChild.firstChild.childNodes.length > 1) {
-      return (content.value as any).$el.firstChild.firstChild.firstChild
-    } else {
-      return (content.value as any).$el.firstChild.firstChild.firstChild
+    let currNode = (content.value as any).$el.firstChild.firstChild
+    while (currNode.childNodes.length > 0) {
+      currNode = currNode.childNodes[0]
     }
+    return currNode
   } else {
     if ((content.value as any).$el) return (content.value as any).$el.firstChild || content.value.$el
     else return (content.value as any).firstChild || content.value
@@ -77,11 +77,11 @@ function getFirstChild () {
 
 function getLastChild () {
   if (props.block.type === BlockType.Text || props.block.type === BlockType.Quote) {
-    if ((content.value as any).$el.firstChild.firstChild.childNodes.length > 1) {
-      return (content.value as any).$el.firstChild.firstChild.lastChild
-    } else {
-      return (content.value as any).$el.firstChild.firstChild.firstChild
+    let currNode = (content.value as any).$el.firstChild.firstChild
+    while (currNode.childNodes.length > 0) {
+      currNode = currNode.childNodes[currNode.childNodes.length - 1]
     }
+    return currNode
   } else {
     if ((content.value as any).$el) return (content.value as any).$el.firstChild || content.value.$el
     else return (content.value as any).firstChild || content.value
