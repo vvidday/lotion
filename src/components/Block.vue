@@ -306,7 +306,7 @@ interface OffsetRes {
 /*
   Function that gets offset of a node within a text-based (tiptap editor) block
   @param selectedNode - The target node to get the offset for
-  @param parentNode - The parent <p> node containing the content - direct child of class="ProseMirror" div
+  @param parentNode - The parent node containing the content - the div with class="ProseMirror"
   @param layer - Used for recursion
   @param tags - Used for recursion
   @return OffsetRes
@@ -317,15 +317,19 @@ interface OffsetRes {
 */
 function getNodeOffset (selectedNode: Node, parentNode: any, layer:number = 1, tags:string[] = []) : OffsetRes {
   // Edge case for single character in #33 and after split - at most 2 layers deep
+  // Walks down tree to find text node - Anchor node should always be text node, else the line is empty
   if (layer === 1 && selectedNode.childNodes.length > 0) {
-    if (selectedNode.childNodes[0].childNodes.length > 0)
-      selectedNode = selectedNode.childNodes[0].childNodes[0]
-    else selectedNode = selectedNode.childNodes[0]
+    while (selectedNode.childNodes.length > 0) {
+      selectedNode = selectedNode.childNodes[0]
+    }
+    // 3 = Text node - If not text node, line is empty
+    if (selectedNode.nodeType !== 3) {
+      return {offsetNoTags: 0, offset: 0, found: true, tags: []}
+    }
   }
   // Maximum depth of 3 at all times, cannot nest more than <p><strong><em></em></strong></p>
-  if (layer > 3) return {offsetNoTags: 0, offset: 0, found: false, tags: []}
-  // On first layer, add 3 to account for <p>
-  let offsetNoTags = 0, offset = layer === 1 ? 3 : 0
+  if (layer > 4) return {offsetNoTags: 0, offset: 0, found: false, tags: []}
+  let offsetNoTags = 0, offset = 0
   for (const [_, node] of parentNode.childNodes.entries()) {
     if (node === selectedNode) {
       return {offsetNoTags: offsetNoTags, offset: offset, found: true, tags: tags}
@@ -333,7 +337,10 @@ function getNodeOffset (selectedNode: Node, parentNode: any, layer:number = 1, t
     if (node.childNodes.length > 0) {
       // Means current node is a <strong> or <em> node
       offset += node.tagName.length + 2
-      tags.push(node.tagName.toLowerCase())
+      // Ignore <p>
+      if (node.tagName !== 'P') 
+        tags.push(node.tagName.toLowerCase())
+      // Recursively walk down tree to find text nodes
       const res = getNodeOffset(selectedNode, node, layer + 1, tags)
       if (res.found) return {offsetNoTags: offsetNoTags + res.offsetNoTags, offset: offset + res.offset, found: true, tags: res.tags}
       // Node not found, add closing tag (+3 for </>)
@@ -355,7 +362,7 @@ function getCaretPos () {
   if (selection && selection.anchorNode) {
     // If editor type, use getNodeOffset, else just return anchor offset
     if (props.block.type === BlockType.Text || props.block.type === BlockType.Quote) {
-      const res = getNodeOffset(selection.anchorNode, (content.value as any).$el.firstChild.firstChild)
+      const res = getNodeOffset(selection.anchorNode, (content.value as any).$el.firstChild)
       return {pos: selection.anchorOffset + res.offset, tags: res.tags}
     } else return {pos: selection.anchorOffset, tags: []}
   } else return {pos: 0, tags: []}
@@ -366,7 +373,7 @@ function getCaretPosWithoutTags () {
   if (selection && selection.anchorNode) {
     // If editor type, use getNodeOffset, else just return anchor offset
     if (props.block.type === BlockType.Text || props.block.type === BlockType.Quote)
-      return {pos: selection.anchorOffset + getNodeOffset(selection.anchorNode, (content.value as any).$el.firstChild.firstChild).offsetNoTags}
+      return {pos: selection.anchorOffset + getNodeOffset(selection.anchorNode, (content.value as any).$el.firstChild).offsetNoTags}
     else return {pos: selection.anchorOffset}
   } else return {pos: 0}
 }
@@ -380,7 +387,7 @@ interface NodeSelectRes {
 /*
   Function that gets the node that we want to set the caret on, based on ideal caret position
   @param caretPos - The offset (no tags) of the ideal position of the caret
-  @param parentNode - The parent <p> node containing the content - direct child of class="ProseMirror" div
+  @param parentNode - The parent node containing the content - the div with class="ProseMirror"
   @param layer - Used for recursion
   @return NodeSelectRes
     node - The node to set the caret on
@@ -388,9 +395,10 @@ interface NodeSelectRes {
     found - Boolean indicating if node was found
 */
 function getNodeToSelect (caretPos: number, parentNode: any, layer: number = 1) : NodeSelectRes {
-  if (layer > 3) return {offset: caretPos, found: false}
+  if (layer > 4) return {offset: caretPos, found: false}
   for (const [_, node] of parentNode.childNodes.entries()) {
     if (node.childNodes.length > 0) {
+      // Not in a text node - recursively walk down the tree until we get a text node
       const res = getNodeToSelect(caretPos, node, layer + 1)
       if (res.found) return {node: res.node, offset: res.offset, found: true}
       caretPos = res.offset
@@ -409,7 +417,7 @@ function setCaretPos (caretPos:number) {
   const innerContent = getInnerContent()
   if (innerContent) {
     if (props.block.type === BlockType.Text || props.block.type === BlockType.Quote) {
-      const res = getNodeToSelect(caretPos, (content.value as any).$el.firstChild.firstChild)
+      const res = getNodeToSelect(caretPos, (content.value as any).$el.firstChild)
       if (res.node !== undefined) {
         const selection = window.getSelection()
         const range = document.createRange()
