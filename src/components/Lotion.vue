@@ -50,6 +50,12 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  onSetAll: {
+    type: Function as PropType<(blocks:Block) => void>,
+  },
+  onUnsetAll: {
+    type: Function as PropType<(blocks:Block) => void>,
+  }
 })
 
 const editor = ref<HTMLDivElement|null>(null)
@@ -165,6 +171,7 @@ function deleteBlock (blockIdx: number) {
 
 async function setBlockType (blockIdx: number, type: BlockType) {
   if (blockElements.value[blockIdx].content.onUnset) {
+    if (props.onUnsetAll !== undefined) props.onUnsetAll(props.page.blocks[blockIdx])
     blockElements.value[blockIdx].content.onUnset()
   }
   props.page.blocks[blockIdx].type = type
@@ -173,6 +180,7 @@ async function setBlockType (blockIdx: number, type: BlockType) {
     insertBlock(blockIdx)
   } else setTimeout(() => {
     if (blockElements.value[blockIdx].content.onSet) {
+      if (props.onSetAll !== undefined) props.onSetAll(props.page.blocks[blockIdx])
       blockElements.value[blockIdx].content.onSet()
     } else {
       blockElements.value[blockIdx].moveToEnd()
